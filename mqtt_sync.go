@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"flag"
+	"os"
+	"log"
 )
 
 func main() {
@@ -21,7 +23,9 @@ func main() {
 	flag.Parse()
 
 	sourceOpts := mqtt.NewClientOptions().AddBroker(*sourceBrokerString).SetClientID("mqtt_sync")
+	sourceOpts.SetAutoReconnect(true)
 	destinationOpts := mqtt.NewClientOptions().AddBroker(*destinationBrokerString).SetClientID("mqtt_sync")
+	destinationOpts.SetAutoReconnect(true)
 
 	if *sourceUserString != "" {
 		sourceOpts.SetUsername(*sourceUserString)
@@ -39,25 +43,13 @@ func main() {
 		destinationOpts.SetPassword(*destinationPassString)
 	}
 
-	sourceClient := mqtt.NewClient(sourceOpts)
 	destinationClient := mqtt.NewClient(destinationOpts)
-
-	defer sourceClient.Disconnect(10)
-	defer destinationClient.Disconnect(10)
-
-	if token := sourceClient.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	}
-
-	if token := destinationClient.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	}
 
 	var republishCallback = func(c mqtt.Client, message mqtt.Message) {
 		destinationTopic := *destinationTopicPrefix + message.Topic()
 
 		if *debugMode {
-			fmt.Printf("%s%s %s => %s%s %s\n",
+			log.Printf("%s%s %s => %s%s %s\n",
 				*sourceBrokerString,
 				message.Topic(),
 				message.Payload(),
@@ -70,9 +62,28 @@ func main() {
 		token.Wait()
 	}
 
-	if token := sourceClient.Subscribe(*sourceTopic, 0, republishCallback); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
+	sourceOpts.OnConnect = func(sourceClient mqtt.Client) {
+		if token := sourceClient.Subscribe(*sourceTopic, 0, republishCallback); token.Wait() && token.Error() != nil {
+			fmt.Println(token.Error())
+		}
 	}
+
+	sourceClient := mqtt.NewClient(sourceOpts)
+
+	if token := sourceClient.Connect(); token.Wait() && token.Error() != nil {
+		fmt.Printf("source host: %v\n", token.Error())
+		os.Exit(1)
+	}
+
+	if token := destinationClient.Connect(); token.Wait() && token.Error() != nil {
+		fmt.Printf("destination host: %v\n", token.Error())
+		os.Exit(1)
+	}
+
+	defer sourceClient.Disconnect(10)
+	defer destinationClient.Disconnect(10)
+
+	fmt.Println("mqtt_sync connected...")
 
 	for true {
 
