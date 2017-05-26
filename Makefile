@@ -1,5 +1,4 @@
 BASEDIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-NETWORK = docker_default
 
 build:
 	docker run --rm -v "$(BASEDIR)":/usr/src/mqtt_sync -w /usr/src/mqtt_sync golang:alpine \

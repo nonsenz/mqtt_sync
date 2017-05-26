@@ -1,6 +1,12 @@
 # mqtt_sync
 
-simple tool that will sync one mqtt server to another. 
+simple tool that will sync one mqtt server to another. you can do this by specifying a source topic string and if you like a destination prefix:
+
+    > ./mqtt_sync -s tcp://sourcehost:1883 -d tcp://destinationhost:1883 -t /foo/# -p /muh 
+    
+will sync like this:
+
+    tcp://sourcehost:1883/foo/doo/boo bar1 => tcp://destinationhost:1883/muh/foo/doo/boo bar1
 
 ## usage
 
@@ -31,6 +37,6 @@ you can build a mini container (<6mb) of this tool simply by running make. it wi
 
 ## todo
 
-- buffer payload if destination is down
+- buffer souce payload if destination is down
 - tls
 - tests :-P
